@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>App Search — Demo</title>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --muted:#9aa4b2; --accent:#6ee7b7;
+      --glass: rgba(255,255,255,0.03);
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#071021 0%, #081426 100%);color:#e6eef6;min-height:100vh}
+    .wrap{max-width:1100px;margin:36px auto;padding:20px}
+
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between}
+    h1{font-size:20px;margin:0}
+    p.lead{margin:4px 0 0;color:var(--muted);font-size:13px}
+
+    .controls{display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap}
+    .searchBox{flex:1;display:flex;align-items:center;background:var(--glass);padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+    .searchBox input{flex:1;background:transparent;border:0;color:inherit;font-size:15px;padding:6px 8px;outline:none}
+    .select, .btn{background:var(--card);border:1px solid rgba(255,255,255,0.03);color:var(--muted);padding:8px 10px;border-radius:10px;font-size:14px}
+    .select{min-width:150px}
+    .btn{cursor:pointer;color:var(--accent);border-color:rgba(110,231,183,0.12)}
+
+    .stats{margin-top:14px;color:var(--muted);font-size:13px}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:18px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);display:flex;gap:12px;align-items:flex-start}
+    .icon{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;background:linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));flex-shrink:0}
+    .card h3{margin:0;font-size:15px}
+    .card p{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .meta{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+    .chip{padding:6px 8px;background:rgba(255,255,255,0.02);border-radius:999px;font-size:12px;color:var(--muted)}
+
+    .noresults{text-align:center;padding:40px;color:var(--muted)}
+
+    footer{margin-top:22px;color:var(--muted);font-size:13px}
+
+    /* highlight matched text */
+    mark{background:linear-gradient(90deg,#ffd86b33,#6ee7b733);color:inherit;padding:0 2px;border-radius:3px}
+
+    @media (max-width:520px){header{flex-direction:column;align-items:flex-start}.controls{gap:8px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>App Search — Demo</h1>
+        <p class="lead">Search, filter and sort mock apps (client-side demo). Copy this file and open in your browser.</p>
+      </div>
+      <div>
+        <small style="color:var(--muted)">Local demo • no backend</small>
+      </div>
+    </header>
+
+    <div class="controls" role="search">
+      <div class="searchBox" aria-label="Search apps">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden style="opacity:.7;margin-right:8px"><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <input id="q" placeholder="Search apps, categories, tags..." aria-label="Search apps" />
+      </div>
+
+      <select id="category" class="select" aria-label="Filter by category">
+        <option value="all">All categories</option>
+      </select>
+
+      <select id="sort" class="select" aria-label="Sort results">
+        <option value="relevance">Sort: Relevance</option>
+        <option value="rating">Sort: Rating (high → low)</option>
+        <option value="downloads">Sort: Downloads (high → low)</option>
+        <option value="name">Sort: Name (A → Z)</option>
+      </select>
+
+      <button id="clear" class="btn" title="Clear search">Clear</button>
+    </div>
+
+    <div class="stats" id="stats">Showing <strong id="count">0</strong> apps</div>
+
+    <main>
+      <div id="grid" class="grid"></div>
+      <div id="noresults" class="noresults" hidden>
+        <p>No apps found. Try different keywords or category.</p>
+      </div>
+    </main>
+
+    <footer>
+      Tip: This is a static demo. I can add backend, pagination, or connect to a real app store API if you want.
+    </footer>
+  </div>
+
+  <script>
+    // --- Sample dataset ---
+    const APPS = [
+      {id:1,name:'Chatly — AI Messenger',category:'Communication',rating:4.7,downloads:1200000,description:'AI-based messenger with voice to text and privacy-first features',tags:['ai','chat','messaging'],icon:'💬'},
+      {id:2,name:'FitTrack',category:'Health & Fitness',rating:4.4,downloads:560000,description:'Workout plans, progress tracker and nutrition logs',tags:['fitness','health','tracker'],icon:'🏃'},
+      {id:3,name:'CookBook — Recipes',category:'Food & Drink',rating:4.6,downloads:230000,description:'Personalized recipe recommendations and shopping lists',tags:['recipes','cooking','food'],icon:'🍲'},
+      {id:4,name:'Pixel Painter',category:'Art & Design',rating:4.2,downloads:98000,description:'Easy-to-use pixel drawing editor for beginners',tags:['graphics','editor','paint'],icon:'🎨'},
+      {id:5,name:'Pocket Budget',category:'Finance',rating:4.5,downloads:430000,description:'Simple budgeting app with automatic expense categorization',tags:['finance','budget','money'],icon:'💰'},
+      {id:6,name:'NewsFlash',category:'News',rating:4.0,downloads:310000,description:'Customize news feed and read offline',tags:['news','rss','reader'],icon:'📰'},
+      {id:7,name:'StudyBuddy',category:'Education',rating:4.8,downloads:150000,description:'Flashcards, quizzes and study schedules for students',tags:['education','learning','study'],icon:'📚'},
+      {id:8,name:'ShopSmart',category:'Shopping',rating:4.1,downloads:720000,description:'Compare prices from multiple stores and get cashback',tags:['shopping','deals','ecommerce'],icon:'🛍️'},
+      {id:9,name:'TravelMap',category:'Travel',rating:4.3,downloads:260000,description:'Trip planner, offline maps and itinerary sharing',tags:['maps','travel','trips'],icon:'🗺️'},
+      {id:10,name:'CalmSleep',category:'Health & Fitness',rating:4.6,downloads:410000,description:'Guided sleep sessions and relaxing soundscapes',tags:['sleep','meditation','wellness'],icon:'😴'}
+    ];
+
+    // --- Utilities ---
+    const $ = id => document.getElementById(id);
+    const normalize = s => (s||'').toString().toLowerCase();
+
+    // populate category select
+    const categories = ['All categories', ...Array.from(new Set(APPS.map(a=>a.category)))];
+    const catSelect = $('category');
+    categories.forEach((c,i)=>{
+      const opt = document.createElement('option'); opt.value = i===0? 'all' : c; opt.textContent = c; catSelect.appendChild(opt);
+    });
+
+    // render
+    function renderList(items, query){
+      const grid = $('grid'); grid.innerHTML='';
+      $('count').textContent = items.length;
+      if(!items.length){ $('noresults').hidden = false; return } else { $('noresults').hidden = true }
+
+      const q = normalize(query);
+      items.forEach(app=>{
+        // highlight occurrences in name/desc
+        function hl(text){
+          if(!q) return escapeHtml(text);
+          const re = new RegExp('('+escapeRegExp(q)+')','ig');
+          return escapeHtml(text).replace(re, '<mark>$1</mark>');
+        }
+
+        const card = document.createElement('article'); card.className='card';
+        card.innerHTML = `
+          <div class="icon" aria-hidden>${app.icon}</div>
+          <div style="flex:1">
+            <h3>${hl(app.name)}</h3>
+            <p>${hl(app.description)}</p>
+            <div class="meta">
+              <span class="chip">⭐ ${app.rating.toFixed(1)}</span>
+              <span class="chip">⬇ ${numberWithCommas(app.downloads)}</span>
+              <span class="chip">${app.category}</span>
+              ${app.tags.slice(0,3).map(t=>`<span class="chip">#${t}</span>`).join('')}
+            </div>
+          </div>`;
+        grid.appendChild(card);
+      })
+    }
+
+    // search logic
+    function searchApps({q='',category='all',sort='relevance'}){
+      const qn = normalize(q).trim();
+      let results = APPS.filter(app=>{
+        if(category!=='all' && app.category !== category) return false;
+        if(!qn) return true;
+        // match name, description, category, tags
+        const hay = [app.name, app.description, app.category, ...(app.tags||[])].join('\n');
+        return normalize(hay).includes(qn);
+      });
+
+      // simple relevance: count matches in name give weight
+      if(sort==='relevance'){
+        if(qn) results.sort((a,b)=> score(b,qn)-score(a,qn));
+        else results.sort((a,b)=> b.downloads - a.downloads);
+      } else if(sort==='rating') results.sort((a,b)=> b.rating - a.rating);
+      else if(sort==='downloads') results.sort((a,b)=> b.downloads - a.downloads);
+      else if(sort==='name') results.sort((a,b)=> a.name.localeCompare(b.name));
+
+      return results;
+
+      function score(app,term){
+        const name = normalize(app.name); const desc = normalize(app.description);
+        let s=0; if(name.includes(term)) s+=30; if(desc.includes(term)) s+=10; if(app.tags.join(' ').includes(term)) s+=8; if(app.category.toLowerCase().includes(term)) s+=6; s += Math.min(20, Math.floor(app.downloads/100000)); return s;
+      }
+    }
+
+    // helpers
+    function escapeHtml(s){return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}
+    function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+    function numberWithCommas(x){ return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g,","); }
+
+    // debounce
+    function debounce(fn,wait=250){let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),wait) }}
+
+    // wire events
+    const qInput = $('q'); const sortSelect = $('sort'); const clearBtn = $('clear');
+    function updateFromUI(){
+      const q = qInput.value; const cat = $('category').value; const sort = sortSelect.value;
+      const results = searchApps({q,category:cat,sort});
+      renderList(results,q);
+    }
+    const debouncedUpdate = debounce(updateFromUI,180);
+    qInput.addEventListener('input',debouncedUpdate);
+    $('category').addEventListener('change',updateFromUI);
+    sortSelect.addEventListener('change',updateFromUI);
+    clearBtn.addEventListener('click',()=>{ qInput.value=''; $('category').value='all'; sortSelect.value='relevance'; updateFromUI(); qInput.focus() });
+
+    // initial render
+    renderList(APPS,'');
+
+    // accessibility: allow Enter to focus first result
+    qInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ const first = document.querySelector('.card'); if(first) first.scrollIntoView({behavior:'smooth'}); } });
+  </script>
+</body>
+</html>
